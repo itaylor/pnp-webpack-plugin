@@ -53,6 +53,20 @@ function makeResolver(sourceLocator, filter) {
   const sourceLocation = getSourceLocation(sourceLocator);
 
   return resolver => {
+    const prevVirtuals = {};
+    function dedupeSameCacheVirtual(resolved) {
+      const matched = resolved.match(/\$\$virtual\/.*?\/cache\/(.*?\.zip)/i);
+      if (matched && matched[1]) {
+        const cacheKey = matched[1];
+        if (prevVirtuals[cacheKey]) {
+          const deduped = prevVirtuals[cacheKey];
+          return deduped;
+        }
+        prevVirtuals[cacheKey] = resolved;
+      }
+      return resolved;
+    }
+
     const BACKWARD_PATH = /^\.\.([\\\/]|$)/;
 
     const resolvedHook = resolver.ensureHook(`resolve`);
@@ -98,6 +112,7 @@ function makeResolver(sourceLocator, filter) {
 
       try {
         resolution = pnp.resolveToUnqualified(request, resolutionIssuer, {considerBuiltins: false});
+        resolution = dedupeSameCacheVirtual(resolution);
       } catch (error) {
         if (resolveContext.missingDependencies)
           resolveContext.missingDependencies.add(requestContext.path);
